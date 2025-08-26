@@ -53,3 +53,29 @@ CodeCoverage/
 TestResult.xml
 nunit-*.xml
 ReceiptBot/.env
+
+# === Build outputs (.NET) ===
+bin/
+obj/
+**/bin/
+**/obj/
+artifacts/
+*.dll
+*.exe
+*.pdb
+*.cache
+*.log
+
+# === IDE / tooling ===
+.vs/
+.vscode/
+.idea/
+
+# === NuGet / packages ===
+*.nupkg
+*.snupkg
+packages/
+
+# === User-specific ===
+*.use*
+

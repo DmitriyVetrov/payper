@@ -1,0 +1,83 @@
+{
+  "format": 1,
+  "restore": {
+    "/home/dmitr/git/payper/ReceiptBot/ReceiptBot.csproj": {}
+  },
+  "projects": {
+    "/home/dmitr/git/payper/ReceiptBot/ReceiptBot.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "/home/dmitr/git/payper/ReceiptBot/ReceiptBot.csproj",
+        "projectName": "ReceiptBot",
+        "projectPath": "/home/dmitr/git/payper/ReceiptBot/ReceiptBot.csproj",
+        "packagesPath": "/home/dmitr/.nuget/packages/",
+        "outputPath": "/home/dmitr/git/payper/ReceiptBot/obj/",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "/home/dmitr/.nuget/NuGet/NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0": {
+            "targetAlias": "net8.0",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        }
+      },
+      "frameworks": {
+        "net8.0": {
+          "targetAlias": "net8.0",
+          "dependencies": {
+            "Azure.AI.DocumentIntelligence": {
+              "target": "Package",
+              "version": "[1.0.0, )"
+            },
+            "DotNetEnv": {
+              "target": "Package",
+              "version": "[3.1.1, )"
+            },
+            "Telegram.Bot": {
+              "target": "Package",
+              "version": "[22.6.2, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.AspNetCore.App": {
+              "privateAssets": "none"
+            },
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "/usr/share/dotnet/sdk/8.0.413/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    }
+  }
+}

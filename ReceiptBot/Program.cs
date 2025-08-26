@@ -1,4 +1,5 @@
 ﻿using DotNetEnv;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
@@ -28,12 +29,21 @@ builder.ConfigureServices((ctx, services) =>
                      : Environment.GetEnvironmentVariable("AZURE_DI_MODEL")!;
     });
 
+    // Database - Add this AFTER installing the EF packages
+    services.AddDbContext<ReceiptDbContext>(options =>
+    {
+        var connectionString = Environment.GetEnvironmentVariable("DATABASE_CONNECTION_STRING") 
+            ?? "Data Source=receipts.db";
+        options.UseSqlite(connectionString);
+    });
+
     // Infra
     services.AddSingleton<AzureDocIntelligenceClientFactory>();
     services.AddSingleton<IFileStorage, LocalTempFileStorage>();
 
-    // Domain
-    services.AddSingleton<IReceiptRepository, InMemoryReceiptRepository>();
+    // Domain - Changed to Scoped for EF Core
+    services.AddScoped<IReceiptRepository, DatabaseReceiptRepository>();
+    services.AddScoped<ExpenseAnalysisService>();
     services.AddSingleton<ReceiptProcessor>();
     services.AddSingleton<ReceiptFormatter>();
 
@@ -41,4 +51,13 @@ builder.ConfigureServices((ctx, services) =>
     services.AddHostedService<TelegramPollingService>();
 });
 
-await builder.Build().RunAsync();
+var app = builder.Build();
+
+// Ensure database is created
+using (var scope = app.Services.CreateScope())
+{
+    var context = scope.ServiceProvider.GetRequiredService<ReceiptDbContext>();
+    await context.Database.EnsureCreatedAsync();
+}
+
+await app.RunAsync();

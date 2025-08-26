@@ -52,7 +52,10 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
-ReceiptBot/.env
+
+# Environment files
+.env
+**/.env
 
 # === Build outputs (.NET) ===
 bin/
@@ -77,5 +80,18 @@ artifacts/
 packages/
 
 # === User-specific ===
-*.use*
+*.user
 
+# === Database files (SQLite) ===
+*.db
+*.db-shm
+*.db-wal
+receipts.db*
+
+# === Entity Framework Migrations (Optional - comment out if you want to include migrations) ===
+# Migrations/
+
+# === Sensitive configuration files ===
+appsettings.Development.json
+appsettings.Production.json
+appsettings.Local.json

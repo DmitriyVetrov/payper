@@ -158,6 +158,19 @@ public sealed class TelegramPollingService : BackgroundService
             await using var contentStream = await processor.DownloadTelegramFileAsync(bot, msg, ct);
             var summary = await processor.ProcessAsync(contentStream, ct);
 
+            // Check for duplicate receipt
+            var receiptHash = summary.ComputeHash();
+            var isDuplicate = await repository.ExistsByHashAsync(receiptHash, ct);
+            
+            if (isDuplicate)
+            {
+                await bot.SendMessage(
+                    msg.Chat,
+                    "⚠️ This receipt appears to be a duplicate and was not saved.",
+                    cancellationToken: ct);
+                return;
+            }
+
             // Save to database
             await repository.SaveAsync(summary, ct);
 

@@ -7,6 +7,12 @@ public sealed class InMemoryReceiptRepository : IReceiptRepository
 {
     private readonly ConcurrentBag<ReceiptSummary> _store = new();
 
+    public Task<bool> ExistsByHashAsync(string receiptHash, CancellationToken ct = default)
+    {
+        var exists = _store.Any(r => r.ComputeHash() == receiptHash);
+        return Task.FromResult(exists);
+    }
+
     public Task SaveAsync(ReceiptSummary receipt, CancellationToken ct = default)
     {
         _store.Add(receipt);

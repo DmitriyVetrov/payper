@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using ReceiptBot.Persistence;
 
@@ -10,9 +11,11 @@ using ReceiptBot.Persistence;
 namespace ReceiptBot.Migrations
 {
     [DbContext(typeof(ReceiptDbContext))]
-    partial class ReceiptDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250827210549_AddReceiptHashField")]
+    partial class AddReceiptHashField
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.8");

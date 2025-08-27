@@ -20,6 +20,9 @@ public sealed class ReceiptEntity
     [Column(TypeName = "decimal(18,2)")]
     public decimal? Total { get; set; }
 
+    [MaxLength(64)]
+    public string? ReceiptHash { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     // Navigation property

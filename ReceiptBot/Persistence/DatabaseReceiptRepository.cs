@@ -13,6 +13,12 @@ public sealed class DatabaseReceiptRepository : IReceiptRepository
         _context = context;
     }
 
+    public async Task<bool> ExistsByHashAsync(string receiptHash, CancellationToken ct = default)
+    {
+        return await _context.Receipts
+            .AnyAsync(r => r.ReceiptHash == receiptHash, ct);
+    }
+
     public async Task SaveAsync(ReceiptSummary receipt, CancellationToken ct = default)
     {
         var entity = new ReceiptEntity
@@ -24,6 +30,7 @@ public sealed class DatabaseReceiptRepository : IReceiptRepository
             TransactionDate = receipt.TransactionDate,
             TransactionTime = receipt.TransactionTime,
             Total = receipt.Total,
+            ReceiptHash = receipt.ComputeHash(),
         };
 
         // Add items

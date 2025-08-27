@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace ReceiptBot.Models;
 
@@ -15,4 +17,15 @@ public sealed class ReceiptSummary
     public decimal? Total { get; set; }
 
     public List<ReceiptItem> Items { get; } = new();
+
+    public string ComputeHash()
+    {
+        var hashInput = $"{MerchantName?.Trim()?.ToLowerInvariant() ?? ""}" +
+                       $"|{Total?.ToString("F2") ?? ""}" +
+                       $"|{TransactionDate?.ToString("yyyy-MM-dd") ?? ""}" +
+                       $"|{TransactionTime?.ToString("HH:mm") ?? ""}";
+        
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(hashInput));
+        return Convert.ToHexString(bytes).ToLowerInvariant();
+    }
 }

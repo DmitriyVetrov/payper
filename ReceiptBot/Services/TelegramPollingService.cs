@@ -104,7 +104,7 @@ public sealed class TelegramPollingService : BackgroundService
                 
                 if (merchants.Any())
                 {
-                    var response = "🏪 Expenses by merchant this month:\n\n" +
+                    var response = "🏪 Expenses by Merchant this month:\n\n" +
                                   string.Join("\n", merchants
                                       .OrderByDescending(kvp => kvp.Value)
                                       .Take(10)

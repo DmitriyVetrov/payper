@@ -10,7 +10,7 @@ on:
 
 env:
   DOCKER_IMAGE: receiptbot
-  AZURE_RESOURCE_GROUP: ReceiptBot-RG
+  AZURE_RESOURCE_GROUP: ReceiptBot-RG  # Your existing resource group
   AZURE_CONTAINER_APP: receiptbot
   AZURE_LOCATION: westeurope
 
@@ -46,59 +46,26 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
-    # 3. DEPLOY TO AZURE (CHEAPEST SETUP)
+    # 3. DEPLOY TO AZURE (USE EXISTING RESOURCES)
     - name: 🔐 Azure Login
       uses: azure/login@v1
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-    - name: 🏗️ Create Azure Resources (First Time Only)
+    - name: 🏗️ Setup Container Apps Environment (If Needed)
       run: |
-        echo "🏗️ Setting up Azure resources..."
+        echo "🏗️ Checking Container Apps environment..."
         
-        # Create Resource Group if it doesn't exist
-        if ! az group exists --name ${{ env.AZURE_RESOURCE_GROUP }}; then
-          echo "Creating resource group..."
-          az group create --name ${{ env.AZURE_RESOURCE_GROUP }} --location ${{ env.AZURE_LOCATION }}
-        fi
-
-        # Create Document Intelligence (FREE TIER)
-        if ! az cognitiveservices account show --name receiptbot-docintel --resource-group ${{ env.AZURE_RESOURCE_GROUP }} >/dev/null 2>&1; then
-          echo "Creating Document Intelligence (Free tier)..."
-          az cognitiveservices account create \
-            --name receiptbot-docintel \
-            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --kind FormRecognizer \
-            --sku F0 \
-            --location ${{ env.AZURE_LOCATION }} \
-            --yes
-        fi
-
-        # Create Container Apps Environment
+        # Only create Container Apps Environment if it doesn't exist
         if ! az containerapp env show --name receiptbot-env --resource-group ${{ env.AZURE_RESOURCE_GROUP }} >/dev/null 2>&1; then
           echo "Creating Container Apps environment..."
           az containerapp env create \
             --name receiptbot-env \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
             --location ${{ env.AZURE_LOCATION }}
+        else
+          echo "Container Apps environment already exists"
         fi
-
-    - name: 🔑 Get Azure Document Intelligence Credentials
-      id: docintel
-      run: |
-        endpoint=$(az cognitiveservices account show \
-          --name receiptbot-docintel \
-          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-          --query "properties.endpoint" -o tsv)
-        
-        key=$(az cognitiveservices account keys list \
-          --name receiptbot-docintel \
-          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-          --query "key1" -o tsv)
-        
-        echo "::add-mask::$key"
-        echo "endpoint=$endpoint" >> $GITHUB_OUTPUT
-        echo "key=$key" >> $GITHUB_OUTPUT
 
     - name: 🚀 Deploy to Container Apps
       run: |
@@ -112,8 +79,9 @@ jobs:
             --image $image_name \
             --set-env-vars \
               TELEGRAM_BOT_TOKEN=secretref:telegram-token \
-              AZURE_DI_ENDPOINT="${{ steps.docintel.outputs.endpoint }}" \
-              AZURE_DI_KEY=secretref:docintel-key \
+              AZURE_DI_ENDPOINT=secretref:azure-di-endpoint \
+              AZURE_DI_KEY=secretref:azure-di-key \
+              AZURE_DI_MODEL=secretref:azure-di-model \
               DATABASE_CONNECTION_STRING="Data Source=/app/data/receipts.db" \
               ASPNETCORE_ENVIRONMENT=Production
         else
@@ -129,34 +97,41 @@ jobs:
             --memory 0.5Gi \
             --env-vars \
               TELEGRAM_BOT_TOKEN=secretref:telegram-token \
-              AZURE_DI_ENDPOINT="${{ steps.docintel.outputs.endpoint }}" \
-              AZURE_DI_KEY=secretref:docintel-key \
+              AZURE_DI_ENDPOINT=secretref:azure-di-endpoint \
+              AZURE_DI_KEY=secretref:azure-di-key \
+              AZURE_DI_MODEL=secretref:azure-di-model \
               DATABASE_CONNECTION_STRING="Data Source=/app/data/receipts.db" \
               ASPNETCORE_ENVIRONMENT=Production \
             --secrets \
               telegram-token="${{ secrets.TELEGRAM_BOT_TOKEN }}" \
-              docintel-key="${{ steps.docintel.outputs.key }}"
+              azure-di-endpoint="${{ secrets.AZURE_DI_ENDPOINT }}" \
+              azure-di-key="${{ secrets.AZURE_DI_KEY }}" \
+              azure-di-model="${{ secrets.AZURE_DI_MODEL }}"
         fi
 
         # Always update secrets to ensure they're current
+        echo "🔄 Updating secrets..."
         az containerapp secret set \
           --name ${{ env.AZURE_CONTAINER_APP }} \
           --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
           --secrets \
             telegram-token="${{ secrets.TELEGRAM_BOT_TOKEN }}" \
-            docintel-key="${{ steps.docintel.outputs.key }}"
+            azure-di-endpoint="${{ secrets.AZURE_DI_ENDPOINT }}" \
+            azure-di-key="${{ secrets.AZURE_DI_KEY }}" \
+            azure-di-model="${{ secrets.AZURE_DI_MODEL }}"
 
     - name: ✅ Deployment Status
       run: |
         echo "🎉 Deployment completed successfully!"
         echo "📦 Docker Image: ${{ secrets.DOCKER_HUB_USERNAME }}/${{ env.DOCKER_IMAGE }}:${{ github.sha }}"
-        echo "🏠 Resource Group: ${{ env.AZURE_RESOURCE_GROUP }}"
+        echo "🏠 Resource Group: ${{ env.AZURE_RESOURCE_GROUP }} (existing)"
         echo "🤖 Container App: ${{ env.AZURE_CONTAINER_APP }}"
+        echo "🔑 Using your existing Azure Document Intelligence service"
         echo ""
         echo "💰 Cost optimization features:"
         echo "  • Scales to 0 when not in use"
-        echo "  • Uses free Document Intelligence tier"
-        echo "  • Minimal CPU/Memory allocation"
+        echo "  • Uses your existing Document Intelligence service"
+        echo "  • Minimal CPU/Memory allocation (0.25 CPU, 0.5GB RAM)"
         echo "  • SQLite database (no Azure SQL costs)"
 
     - name: 🔓 Azure Logout

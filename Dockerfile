@@ -1,5 +1,5 @@
 # Ultra-lightweight Dockerfile for cheapest hosting
-FROM mcr.microsoft.com/dotnet/sdk:8.0-alpine AS build
+FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine AS runtime
 WORKDIR /src
 
 # Copy and restore (caching layer)

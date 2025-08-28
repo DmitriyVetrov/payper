@@ -1,0 +1,98 @@
+# .dockerignore for ReceiptBot
+
+## Git and version control
+.git
+.gitignore
+.gitattributes
+
+## .NET Build outputs (will be rebuilt inside container)
+**/bin/
+**/obj/
+**/out/
+**/publish/
+artifacts/
+
+## Visual Studio / VS Code IDE files
+.vs/
+.vscode/
+*.user
+*.suo
+*.cache
+**/.cr/
+
+## Database files (SQLite - will be created fresh in container)
+*.db
+*.db-shm
+*.db-wal
+receipts.db*
+
+## Environment and configuration files (SECURITY CRITICAL)
+.env
+**/.env
+appsettings.Development.json
+appsettings.Local.json
+appsettings.Production.json
+
+## Entity Framework Migrations (your project has these)
+# Uncomment the line below if you want to exclude migrations
+# **/Migrations/
+
+## Docker files themselves (not needed inside container)
+Dockerfile*
+docker-compose*
+.dockerignore
+
+## Documentation and README files
+README.md
+LICENSE
+CHANGELOG.md
+*.md
+
+## GitHub Actions and CI/CD
+.github/
+
+## NuGet packages (will be restored during build)
+*.nupkg
+*.snupkg
+packages/
+.nuget/
+
+## Test results and coverage
+[Tt]est[Rr]esult*/
+*.trx
+*.coverage
+*.coveragexml
+TestResults/
+
+## Logs and temporary files
+logs/
+*.log
+tmp/
+temp/
+*.tmp
+*~
+
+## OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+## Node modules (if you ever add any frontend stuff)
+node_modules/
+npm-debug.log*
+
+## JetBrains IDEs
+.idea/
+
+## Azure/deployment specific
+azure-pipelines.yml
+.azure/
+
+## Backup files
+*.bak
+*.backup
+*~

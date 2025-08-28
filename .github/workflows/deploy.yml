@@ -1,0 +1,164 @@
+name: Auto-Deploy ReceiptBot
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'ReceiptBot/**'
+      - 'Dockerfile'
+  workflow_dispatch:
+
+env:
+  DOCKER_IMAGE: receiptbot
+  AZURE_RESOURCE_GROUP: ReceiptBot-RG
+  AZURE_CONTAINER_APP: receiptbot
+  AZURE_LOCATION: westeurope
+
+jobs:
+  build-and-deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+    
+    steps:
+    # 1. GET THE CODE
+    - name: 📥 Checkout Code
+      uses: actions/checkout@v4
+
+    # 2. BUILD & PUSH TO DOCKER HUB (FREE)
+    - name: 🐳 Setup Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: 🔑 Login to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKER_HUB_USERNAME }}
+        password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+
+    - name: 🔨 Build & Push Docker Image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile
+        push: true
+        tags: |
+          ${{ secrets.DOCKER_HUB_USERNAME }}/${{ env.DOCKER_IMAGE }}:latest
+          ${{ secrets.DOCKER_HUB_USERNAME }}/${{ env.DOCKER_IMAGE }}:${{ github.sha }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    # 3. DEPLOY TO AZURE (CHEAPEST SETUP)
+    - name: 🔐 Azure Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: 🏗️ Create Azure Resources (First Time Only)
+      run: |
+        echo "🏗️ Setting up Azure resources..."
+        
+        # Create Resource Group if it doesn't exist
+        if ! az group exists --name ${{ env.AZURE_RESOURCE_GROUP }}; then
+          echo "Creating resource group..."
+          az group create --name ${{ env.AZURE_RESOURCE_GROUP }} --location ${{ env.AZURE_LOCATION }}
+        fi
+
+        # Create Document Intelligence (FREE TIER)
+        if ! az cognitiveservices account show --name receiptbot-docintel --resource-group ${{ env.AZURE_RESOURCE_GROUP }} >/dev/null 2>&1; then
+          echo "Creating Document Intelligence (Free tier)..."
+          az cognitiveservices account create \
+            --name receiptbot-docintel \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --kind FormRecognizer \
+            --sku F0 \
+            --location ${{ env.AZURE_LOCATION }} \
+            --yes
+        fi
+
+        # Create Container Apps Environment
+        if ! az containerapp env show --name receiptbot-env --resource-group ${{ env.AZURE_RESOURCE_GROUP }} >/dev/null 2>&1; then
+          echo "Creating Container Apps environment..."
+          az containerapp env create \
+            --name receiptbot-env \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --location ${{ env.AZURE_LOCATION }}
+        fi
+
+    - name: 🔑 Get Azure Document Intelligence Credentials
+      id: docintel
+      run: |
+        endpoint=$(az cognitiveservices account show \
+          --name receiptbot-docintel \
+          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+          --query "properties.endpoint" -o tsv)
+        
+        key=$(az cognitiveservices account keys list \
+          --name receiptbot-docintel \
+          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+          --query "key1" -o tsv)
+        
+        echo "::add-mask::$key"
+        echo "endpoint=$endpoint" >> $GITHUB_OUTPUT
+        echo "key=$key" >> $GITHUB_OUTPUT
+
+    - name: 🚀 Deploy to Container Apps
+      run: |
+        image_name="${{ secrets.DOCKER_HUB_USERNAME }}/${{ env.DOCKER_IMAGE }}:${{ github.sha }}"
+        
+        if az containerapp show --name ${{ env.AZURE_CONTAINER_APP }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }} >/dev/null 2>&1; then
+          echo "🔄 Updating existing container app..."
+          az containerapp update \
+            --name ${{ env.AZURE_CONTAINER_APP }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --image $image_name \
+            --set-env-vars \
+              TELEGRAM_BOT_TOKEN=secretref:telegram-token \
+              AZURE_DI_ENDPOINT="${{ steps.docintel.outputs.endpoint }}" \
+              AZURE_DI_KEY=secretref:docintel-key \
+              DATABASE_CONNECTION_STRING="Data Source=/app/data/receipts.db" \
+              ASPNETCORE_ENVIRONMENT=Production
+        else
+          echo "🆕 Creating new container app..."
+          az containerapp create \
+            --name ${{ env.AZURE_CONTAINER_APP }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --environment receiptbot-env \
+            --image $image_name \
+            --min-replicas 0 \
+            --max-replicas 1 \
+            --cpu 0.25 \
+            --memory 0.5Gi \
+            --env-vars \
+              TELEGRAM_BOT_TOKEN=secretref:telegram-token \
+              AZURE_DI_ENDPOINT="${{ steps.docintel.outputs.endpoint }}" \
+              AZURE_DI_KEY=secretref:docintel-key \
+              DATABASE_CONNECTION_STRING="Data Source=/app/data/receipts.db" \
+              ASPNETCORE_ENVIRONMENT=Production \
+            --secrets \
+              telegram-token="${{ secrets.TELEGRAM_BOT_TOKEN }}" \
+              docintel-key="${{ steps.docintel.outputs.key }}"
+        fi
+
+        # Always update secrets to ensure they're current
+        az containerapp secret set \
+          --name ${{ env.AZURE_CONTAINER_APP }} \
+          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+          --secrets \
+            telegram-token="${{ secrets.TELEGRAM_BOT_TOKEN }}" \
+            docintel-key="${{ steps.docintel.outputs.key }}"
+
+    - name: ✅ Deployment Status
+      run: |
+        echo "🎉 Deployment completed successfully!"
+        echo "📦 Docker Image: ${{ secrets.DOCKER_HUB_USERNAME }}/${{ env.DOCKER_IMAGE }}:${{ github.sha }}"
+        echo "🏠 Resource Group: ${{ env.AZURE_RESOURCE_GROUP }}"
+        echo "🤖 Container App: ${{ env.AZURE_CONTAINER_APP }}"
+        echo ""
+        echo "💰 Cost optimization features:"
+        echo "  • Scales to 0 when not in use"
+        echo "  • Uses free Document Intelligence tier"
+        echo "  • Minimal CPU/Memory allocation"
+        echo "  • SQLite database (no Azure SQL costs)"
+
+    - name: 🔓 Azure Logout
+      if: always()
+      run: az logout

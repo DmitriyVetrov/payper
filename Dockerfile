@@ -1,45 +1,40 @@
-# Ultra-lightweight Dockerfile for cheapest hosting
-FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine AS runtime
+# Multi-stage Dockerfile for ReceiptBot
+FROM mcr.microsoft.com/dotnet/sdk:8.0-alpine AS build
 WORKDIR /src
 
-# Copy and restore (caching layer)
+# Copy csproj and restore dependencies
 COPY ["ReceiptBot/ReceiptBot.csproj", "ReceiptBot/"]
 RUN dotnet restore "ReceiptBot/ReceiptBot.csproj"
 
-# Copy source and build
+# Copy source code and build
 COPY . .
 WORKDIR "/src/ReceiptBot"
-RUN dotnet publish "ReceiptBot.csproj" \
-    -c Release \
-    -o /app/publish \
-    -p:UseAppHost=false \
-    --no-restore \
-    --verbosity quiet
+RUN dotnet publish "ReceiptBot.csproj" -c Release -o /app/publish -p:UseAppHost=false
 
-# Ultra-lightweight runtime
-FROM mcr.microsoft.com/dotnet/runtime:8.0-alpine AS runtime
+# Runtime stage - Use ASP.NET Core runtime
+FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine AS final
 WORKDIR /app
 
-# Install only SQLite (minimal size)
+# Install sqlite3
 RUN apk add --no-cache sqlite
 
-# Create non-root user (security)
+# Create non-root user
 RUN adduser -D -s /bin/sh appuser
 
-# Copy app and set permissions
+# Copy published app
 COPY --from=build /app/publish .
+
+# Create data directory and set permissions
 RUN mkdir -p /app/data && \
     chown -R appuser:appuser /app && \
-    chmod +x /app/ReceiptBot.dll
+    chmod -R 755 /app
 
 # Switch to non-root user
 USER appuser
 
-# Minimal environment
+# Environment variables
 ENV DOTNET_RUNNING_IN_CONTAINER=true
-ENV DOTNET_USE_POLLING_FILE_WATCHER=true
-ENV DATABASE_CONNECTION_STRING="Data Source=/app/data/receipts.db"
 ENV ASPNETCORE_ENVIRONMENT=Production
+ENV DATABASE_CONNECTION_STRING="Data Source=/app/data/receipts.db"
 
-# No health checks or extra ports (save resources)
 ENTRYPOINT ["dotnet", "ReceiptBot.dll"]

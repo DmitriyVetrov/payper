@@ -10,7 +10,7 @@ on:
 
 env:
   DOCKER_IMAGE: receiptbot
-  AZURE_RESOURCE_GROUP: ReceiptBot-RG  # Your existing resource group
+  AZURE_RESOURCE_GROUP: Payper
   AZURE_CONTAINER_APP: receiptbot
   AZURE_LOCATION: westeurope
 
